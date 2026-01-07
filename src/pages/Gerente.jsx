@@ -51,6 +51,7 @@ export const Gerente = () => {
   useEffect(() => {
     obtenerUsuario();
     cargarTodo();
+    // Auto-refresh cada 15s
     const intervalo = setInterval(cargarTodo, 15000); 
     return () => clearInterval(intervalo);
   }, []);
@@ -63,7 +64,6 @@ export const Gerente = () => {
   const obtenerUsuario = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-        // Intentamos obtener nombre, si no usa el email
         const { data } = await supabase.from('perfiles').select('nombre').eq('id', user.id).single();
         if(data) setUsuarioNombre(data.nombre);
     }
@@ -133,12 +133,19 @@ export const Gerente = () => {
     setDataGrafica(datos);
   };
 
+  // --- REGISTRAR EMPLEADO ---
+// --- REGISTRAR EMPLEADO (VERSIÓN FINAL) ---
   const registrarEmpleado = async (e) => {
     e.preventDefault();
-    if(!nuevoEmpleado.email || !nuevoEmpleado.nombre) return toast.error("Faltan datos");
+    if(!nuevoEmpleado.email || !nuevoEmpleado.nombre) return toast.error("Faltan datos obligatorios");
+    
     setLoading(true);
     try {
+        // Generamos un ID manual desde la app para asegurar que no sea null
+        const idManual = crypto.randomUUID(); 
+
         const { error } = await supabase.from('perfiles').insert([{
+            id: idManual, // <--- ESTO ES CLAVE
             nombre: nuevoEmpleado.nombre,
             email: nuevoEmpleado.email,
             rol: nuevoEmpleado.rol,
@@ -146,13 +153,19 @@ export const Gerente = () => {
             estado_actividad: 'activo',
             calificacion: 5.0
         }]);
+
         if (error) throw error;
-        toast.success("Empleado registrado");
+        
+        toast.success("Empleado registrado exitosamente 🎉");
         setModalEmpleadoOpen(false);
         setNuevoEmpleado({ nombre: '', email: '', rol: 'chofer', telefono: '' });
+        
+        // Recargar la lista
         cargarTodo();
+
     } catch (error) {
-        toast.error(error.message);
+        console.error(error);
+        toast.error("Error: " + error.message);
     } finally {
         setLoading(false);
     }
@@ -174,7 +187,6 @@ export const Gerente = () => {
     };
   };
 
-  // Helper para título dinámico
   const getTituloVista = () => {
     switch(vista) {
         case 'dashboard': return 'Resumen Operativo';
@@ -199,14 +211,11 @@ export const Gerente = () => {
         </div>
         
         <nav className="flex-1 px-4 space-y-1 overflow-y-auto py-4">
-          
-          {/* CATEGORÍA 1 */}
           <p className="px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Principal</p>
           <button onClick={() => setVista('dashboard')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all font-bold text-sm ${vista === 'dashboard' ? 'bg-blue-50 text-celeris-main' : 'text-gray-500 hover:bg-gray-50'}`}>
             <LayoutDashboard size={18} /> Dashboard
           </button>
           
-          {/* CATEGORÍA 2 */}
           <p className="px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 mt-6">Gestión</p>
           <button onClick={() => setVista('envios')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all font-bold text-sm ${vista === 'envios' ? 'bg-blue-50 text-celeris-main' : 'text-gray-500 hover:bg-gray-50'}`}>
             <Package size={18} /> Envíos
@@ -218,23 +227,21 @@ export const Gerente = () => {
             <Briefcase size={18} /> Clientes
           </button>
 
-          {/* CATEGORÍA 3 */}
           <p className="px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 mt-6">Operativa</p>
           <button onClick={() => setVista('mapa')} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all font-bold text-sm ${vista === 'mapa' ? 'bg-blue-50 text-celeris-main' : 'text-gray-500 hover:bg-gray-50'}`}>
             <MapIcon size={18} /> Mapa en Vivo
           </button>
         </nav>
         
-        {/* Footer Sidebar (Versión) */}
         <div className="p-4 border-t border-gray-100 text-center">
-            <p className="text-[10px] text-gray-400 font-bold">Celeris v1.0.4</p>
+            <p className="text-[10px] text-gray-400 font-bold">Celeris v1.0.5</p>
         </div>
       </aside>
 
       {/* CONTENIDO PRINCIPAL */}
       <main className="flex-1 overflow-y-auto bg-gray-50/50 flex flex-col">
         
-        {/* HEADER SUPERIOR (BARRA FIJA) */}
+        {/* HEADER */}
         <header className="bg-white border-b border-gray-200 px-8 py-4 sticky top-0 z-30 flex justify-between items-center shadow-sm">
             <div>
                 <h2 className="text-2xl font-bold text-gray-800">{getTituloVista()}</h2>
@@ -244,16 +251,11 @@ export const Gerente = () => {
             </div>
 
             <div className="flex items-center gap-4">
-                {/* Notificaciones (Decorativo) */}
                 <button className="relative p-2 text-gray-400 hover:bg-gray-100 rounded-full transition-colors">
                     <Bell size={20}/>
                     <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
                 </button>
-                
-                {/* Separador */}
                 <div className="h-8 w-px bg-gray-200"></div>
-
-                {/* Perfil y Salir */}
                 <div className="flex items-center gap-3">
                     <div className="text-right hidden sm:block">
                         <p className="text-sm font-bold text-gray-800">{usuarioNombre}</p>
@@ -262,23 +264,16 @@ export const Gerente = () => {
                     <div className="w-10 h-10 bg-celeris-dark text-white rounded-full flex items-center justify-center font-bold shadow-md">
                         <User size={18}/>
                     </div>
-                    
-                    <button 
-                        onClick={handleLogout}
-                        className="ml-2 bg-red-50 text-red-500 p-2 rounded-lg hover:bg-red-100 transition-colors"
-                        title="Cerrar Sesión"
-                    >
-                        <LogOut size={18}/>
-                    </button>
+                    <button onClick={handleLogout} className="ml-2 bg-red-50 text-red-500 p-2 rounded-lg hover:bg-red-100 transition-colors" title="Cerrar Sesión"><LogOut size={18}/></button>
                 </div>
             </div>
         </header>
 
         <div className="p-4 lg:p-8 flex-1">
-            {/* --- VISTA: DASHBOARD --- */}
+            
+            {/* DASHBOARD */}
             {vista === 'dashboard' && (
             <div className="space-y-6 animate-in fade-in duration-500">
-                {/* KPIs */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                     <div className="flex justify-between items-start">
@@ -305,7 +300,6 @@ export const Gerente = () => {
                 </div>
                 </div>
 
-                {/* GRÁFICAS */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[400px]">
                     <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
                         <h3 className="font-bold text-gray-800 mb-6">Tendencia de Ingresos</h3>
@@ -348,17 +342,15 @@ export const Gerente = () => {
             </div>
             )}
 
-            {/* --- VISTA: CLIENTES MEJORADA --- */}
+            {/* CLIENTES */}
             {vista === 'clientes' && (
             <div className="animate-in fade-in">
-                {/* Header Interno (Buscador) */}
                 <div className="flex justify-end mb-6">
                     <div className="relative w-full max-w-md">
                         <Search className="absolute left-3 top-2.5 text-gray-400" size={18}/>
                         <input type="text" placeholder="Buscar por nombre, email o teléfono..." className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg outline-none focus:border-celeris-main focus:ring-1 focus:ring-celeris-main transition-all" value={busqueda} onChange={e=>setBusqueda(e.target.value)}/>
                     </div>
                 </div>
-
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                     <table className="w-full text-left">
                         <thead className="bg-gray-50 text-xs uppercase font-bold text-gray-500">
@@ -375,39 +367,20 @@ export const Gerente = () => {
                             <tr key={c.id} className="hover:bg-gray-50 transition-colors">
                                 <td className="p-4 pl-6">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-celeris-main font-bold">
-                                            {c.nombre ? c.nombre.charAt(0).toUpperCase() : '?'}
-                                        </div>
-                                        <div>
-                                            <p className="font-bold text-gray-900">{c.nombre || 'Sin Nombre'}</p>
-                                            <p className="text-xs text-gray-400">ID: {c.id.slice(0,6)}</p>
-                                        </div>
+                                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-celeris-main font-bold">{c.nombre ? c.nombre.charAt(0).toUpperCase() : '?'}</div>
+                                        <div><p className="font-bold text-gray-900">{c.nombre || 'Sin Nombre'}</p><p className="text-xs text-gray-400">ID: {c.id.slice(0,6)}</p></div>
                                     </div>
                                 </td>
                                 <td className="p-4 text-gray-600 font-medium">{c.email}</td>
-                                <td className="p-4 text-gray-600 flex items-center gap-2">
-                                    {c.telefono ? (
-                                        <><Phone size={14} className="text-gray-400"/> {c.telefono}</>
-                                    ) : (
-                                        <span className="text-gray-300 italic text-xs">No registrado</span>
-                                    )}
-                                </td>
-                                <td className="p-4 text-center">
-                                    <span className="bg-purple-50 text-purple-700 font-bold px-3 py-1 rounded-full border border-purple-100">
-                                        {c.totalEnvios}
-                                    </span>
-                                </td>
-                                <td className="p-4 text-center">
-                                    <span className="text-[10px] font-bold uppercase bg-green-100 text-green-700 px-2 py-1 rounded">Activo</span>
-                                </td>
+                                <td className="p-4 text-gray-600 flex items-center gap-2">{c.telefono ? <><Phone size={14} className="text-gray-400"/> {c.telefono}</> : <span className="text-gray-300 italic text-xs">No registrado</span>}</td>
+                                <td className="p-4 text-center"><span className="bg-purple-50 text-purple-700 font-bold px-3 py-1 rounded-full border border-purple-100">{c.totalEnvios}</span></td>
+                                <td className="p-4 text-center"><span className="text-[10px] font-bold uppercase bg-green-100 text-green-700 px-2 py-1 rounded">Activo</span></td>
                             </tr>
                         ))}
                         </tbody>
                     </table>
-                    
-                    {/* Paginación */}
                     <div className="p-4 border-t border-gray-100 flex justify-between items-center bg-gray-50/50">
-                        <span className="text-xs text-gray-500 font-bold">Mostrando página {paginaActual}</span>
+                        <span className="text-xs text-gray-500 font-bold">Página {paginaActual}</span>
                         <div className="flex gap-2">
                             <button onClick={() => setPaginaActual(p => Math.max(1, p - 1))} className="p-1.5 border rounded-md hover:bg-white bg-white text-gray-500"><ChevronLeft size={16}/></button>
                             <button onClick={() => setPaginaActual(p => Math.min(obtenerPagina(clientes).totalPaginas, p + 1))} className="p-1.5 border rounded-md hover:bg-white bg-white text-gray-500"><ChevronRight size={16}/></button>
@@ -417,10 +390,9 @@ export const Gerente = () => {
             </div>
             )}
 
-            {/* --- VISTA: PERSONAL --- */}
+            {/* PERSONAL */}
             {vista === 'personal' && (
             <div className="animate-in fade-in">
-                {/* Header Interno */}
                 <div className="flex justify-between items-center mb-6">
                     <div></div>
                     <div className="flex gap-3">
@@ -438,41 +410,20 @@ export const Gerente = () => {
                     {obtenerPagina(personal).datos.map(p => (
                     <div key={p.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative group overflow-hidden hover:shadow-md transition-all">
                         <div className={`absolute top-0 left-0 w-1 h-full ${p.rol === 'chofer' ? 'bg-blue-500' : p.rol === 'recepcion' ? 'bg-pink-500' : p.rol === 'bodega' ? 'bg-orange-500' : 'bg-gray-300'}`}></div>
-                        
                         <div className="flex justify-between items-start mb-4 pl-3">
                             <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-lg font-bold text-gray-600">
-                                {p.nombre ? p.nombre.charAt(0) : '?'}
-                                </div>
-                                <div>
-                                <h3 className="font-bold text-gray-900">{p.nombre}</h3>
-                                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                                    p.rol === 'chofer' ? 'bg-blue-100 text-blue-700' :
-                                    p.rol === 'recepcion' ? 'bg-pink-100 text-pink-700' :
-                                    p.rol === 'bodega' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100'
-                                }`}>{p.rol}</span>
-                                </div>
+                                <div className="w-12 h-12 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-lg font-bold text-gray-600">{p.nombre ? p.nombre.charAt(0) : '?'}</div>
+                                <div><h3 className="font-bold text-gray-900">{p.nombre}</h3><span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${p.rol === 'chofer' ? 'bg-blue-100 text-blue-700' : p.rol === 'recepcion' ? 'bg-pink-100 text-pink-700' : p.rol === 'bodega' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100'}`}>{p.rol}</span></div>
                             </div>
-                            {p.rol === 'chofer' && (
-                                <div className="flex items-center gap-1 bg-yellow-50 text-yellow-600 px-2 py-1 rounded-lg text-xs font-bold">
-                                {p.calificacion || '5.0'} <Star size={10} fill="currentColor"/>
-                                </div>
-                            )}
+                            {p.rol === 'chofer' && (<div className="flex items-center gap-1 bg-yellow-50 text-yellow-600 px-2 py-1 rounded-lg text-xs font-bold">{p.calificacion || '5.0'} <Star size={10} fill="currentColor"/></div>)}
                         </div>
-
                         <div className="pl-3 space-y-2 text-sm text-gray-600">
                             <div className="flex items-center gap-2"><Phone size={14} className="text-gray-400"/> {p.telefono || '---'}</div>
                             <div className="flex items-center gap-2"><span className="text-xs bg-gray-100 px-1 rounded">@</span> {p.email}</div>
-                            
                             {p.rol === 'chofer' && (
                                 <div className="mt-4 pt-3 border-t border-gray-50">
-                                <div className="flex justify-between text-xs mb-1">
-                                    <span>Eficiencia</span>
-                                    <span className="font-bold">{p.eficiencia}%</span>
-                                </div>
-                                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                    <div className="h-full bg-blue-500 rounded-full" style={{width: `${p.eficiencia}%`}}></div>
-                                </div>
+                                <div className="flex justify-between text-xs mb-1"><span>Eficiencia</span><span className="font-bold">{p.eficiencia}%</span></div>
+                                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-blue-500 rounded-full" style={{width: `${p.eficiencia}%`}}></div></div>
                                 </div>
                             )}
                         </div>
@@ -482,7 +433,7 @@ export const Gerente = () => {
             </div>
             )}
             
-            {/* --- VISTA: ENVÍOS --- */}
+            {/* ENVÍOS */}
             {vista === 'envios' && (
             <div className="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden animate-in fade-in">
                 <div className="p-6 border-b border-gray-100 flex justify-end">
@@ -491,17 +442,10 @@ export const Gerente = () => {
                         <input type="text" placeholder="Buscar guía, destino..." className="pl-10 pr-4 py-2 border rounded-lg outline-none focus:border-celeris-main" value={busqueda} onChange={e=>setBusqueda(e.target.value)}/>
                     </div>
                 </div>
-
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead className="bg-gray-50 text-xs uppercase font-bold text-gray-500">
-                            <tr>
-                                <th className="p-4 pl-6">Guía</th>
-                                <th className="p-4">Cliente</th>
-                                <th className="p-4">Destino</th>
-                                <th className="p-4">Fecha</th>
-                                <th className="p-4">Estado</th>
-                            </tr>
+                            <tr><th className="p-4 pl-6">Guía</th><th className="p-4">Cliente</th><th className="p-4">Destino</th><th className="p-4">Fecha</th><th className="p-4">Estado</th></tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 text-sm">
                         {obtenerPagina(todosLosPaquetes).datos.map(p => (
@@ -511,14 +455,7 @@ export const Gerente = () => {
                                 <td className="p-4">{p.destino}</td>
                                 <td className="p-4 text-gray-500">{new Date(p.created_at).toLocaleDateString()}</td>
                                 <td className="p-4">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-bold uppercase ${
-                                    p.estado === 'entregado' ? 'bg-green-100 text-green-700' :
-                                    p.estado === 'en_ruta' ? 'bg-blue-100 text-blue-700' :
-                                    p.estado === 'incidencia' ? 'bg-red-100 text-red-700' :
-                                    'bg-yellow-100 text-yellow-700'
-                                    }`}>
-                                    {p.estado}
-                                    </span>
+                                    <span className={`px-2 py-1 rounded-full text-xs font-bold uppercase ${p.estado === 'entregado' ? 'bg-green-100 text-green-700' : p.estado === 'en_ruta' ? 'bg-blue-100 text-blue-700' : p.estado === 'incidencia' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{p.estado}</span>
                                 </td>
                             </tr>
                         ))}
@@ -528,7 +465,7 @@ export const Gerente = () => {
             </div>
             )}
 
-            {/* --- VISTA: MAPA --- */}
+            {/* MAPA */}
             {vista === 'mapa' && (
             <div className="h-full flex flex-col animate-in zoom-in-95">
                 <div className="flex justify-end mb-4">
